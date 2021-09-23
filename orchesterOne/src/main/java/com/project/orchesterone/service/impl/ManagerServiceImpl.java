@@ -19,39 +19,52 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.example.demoorquestados.utils.Constants.ALBUM;
+import static com.example.demoorquestados.utils.Constants.HTTPHEADERS_APPLICATION;
+import static com.example.demoorquestados.utils.Constants.HTTPHEADERS_CONTENT;
+import static com.example.demoorquestados.utils.Constants.NO_STOCK;
+import static com.example.demoorquestados.utils.Constants.QUANTITY_AVAILABLE_PARAMETER;
+import static com.example.demoorquestados.utils.Constants.READY;
+import static com.example.demoorquestados.utils.Constants.RESULT;
+import static com.example.demoorquestados.utils.Constants.URL_ALBUMS_GENERAL;
+import static com.example.demoorquestados.utils.Constants.URL_ALBUMS_ID;
+
 @Service
 public class ManagerServiceImpl implements MaganerService {
 
   @Autowired
   private RestTemplate clientRest;
-  String url = "http://localhost:8080/albums";
-  String url2 = "http://localhost:8080/albums/{id}";
+
 
   @Override
   public ResponseDTO<List<AlbumDTO>> findAll() {
-    ResponseEntity<Object> response = clientRest.exchange(url, HttpMethod.GET, null, Object.class);
+    ResponseEntity<Object> response = clientRest.exchange(URL_ALBUMS_GENERAL, HttpMethod.GET, null, Object.class);
     ResponseDTO responseDTO = new ResponseDTO(response.getBody());
     return responseDTO;
   }
 
   @Override
   public ResponseDTO sale(SaleDTO saleDTO) {
-    HttpHeaders httpHeaders = new HttpHeaders();
-    httpHeaders.set("Content-Type", "application/json");
     String sale = "";
     for (AlbumSale albumSale : saleDTO.getAlbums()) {
       try {
-        ResponseEntity<Object> response = clientRest.exchange(url2, HttpMethod.GET, null, Object.class, albumSale.getId());
-        sale += "Album: " + albumSale.getId() + " Listo ";
-        Map<String, Integer> values = new HashMap<>();
-        values.put("quantityAvailable", albumSale.getQuantity());
-        HttpEntity httpEntity = new HttpEntity(values, httpHeaders);
-        response = clientRest.exchange(url2, HttpMethod.PUT, httpEntity, Object.class, albumSale.getId());
-        System.out.println(response);
+        ResponseEntity<Object> response = clientRest.exchange(URL_ALBUMS_ID, HttpMethod.GET, null, Object.class, albumSale.getId());
+        sale += ALBUM + albumSale.getId() + READY;
+        restQuantityAlbum(albumSale);
       } catch (HttpClientErrorException exception) {
-        sale += "Album: " + albumSale.getId() + " no esta, ";
+        sale += ALBUM + albumSale.getId() + NO_STOCK;
       }
     }
-    return new ResponseDTO(Constants.ResponseConstants.SUCCESS, "Resultado", sale);
+    return new ResponseDTO(Constants.ResponseConstants.SUCCESS, RESULT, sale);
+  }
+
+  public void restQuantityAlbum(AlbumSale albumSale){
+    HttpHeaders httpHeaders = new HttpHeaders();
+    httpHeaders.set(HTTPHEADERS_CONTENT, HTTPHEADERS_APPLICATION);
+    Map<String, Integer> values = new HashMap<>();
+    values.put(QUANTITY_AVAILABLE_PARAMETER, albumSale.getQuantity());
+    HttpEntity httpEntity = new HttpEntity(values, httpHeaders);
+    ResponseEntity<Object> response = clientRest.exchange(URL_ALBUMS_ID, HttpMethod.PUT, httpEntity, Object.class, albumSale.getId());
+
   }
 }
